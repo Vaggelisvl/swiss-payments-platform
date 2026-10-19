@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.09">
+  <CstmrCdtTrfInitn>
+    <GrpHdr>
+      <MsgId>MSG-2026-0001</MsgId>
+      <CreDtTm>2026-10-19T09:00:00</CreDtTm>
+      <NbOfTxs>2</NbOfTxs>
+    </GrpHdr>
+    <PmtInf>
+      <PmtInfId>PMT-1</PmtInfId>
+      <DbtrAcct><Id><IBAN>CH9300762011623852957</IBAN></Id></DbtrAcct>
+      <CdtTrfTxInf>
+        <PmtId><EndToEndId>E2E-1</EndToEndId></PmtId>
+        <Amt><InstdAmt Ccy="CHF">1949.75</InstdAmt></Amt>
+        <CdtrAcct><Id><IBAN>CH4431999123000889012</IBAN></Id></CdtrAcct>
+        <RmtInf>
+          <Strd>
+            <CdtrRefInf>
+              <Tp><CdOrPrtry><Prtry>QRR</Prtry></CdOrPrtry></Tp>
+              <Ref>210000000003139471430009017</Ref>
+            </CdtrRefInf>
+          </Strd>
+        </RmtInf>
+      </CdtTrfTxInf>
+      <CdtTrfTxInf>
+        <PmtId><EndToEndId>E2E-2</EndToEndId></PmtId>
+        <Amt><InstdAmt Ccy="EUR">20.00</InstdAmt></Amt>
+        <CdtrAcct><Id><IBAN>LI21088100002324013AA</IBAN></Id></CdtrAcct>
+        <RmtInf>
+          <Strd>
+            <CdtrRefInf>
+              <Tp><CdOrPrtry><Cd>SCOR</Cd></CdOrPrtry></Tp>
+              <Ref>RF18539007547034</Ref>
+            </CdtrRefInf>
+          </Strd>
+        </RmtInf>
+      </CdtTrfTxInf>
+    </PmtInf>
+  </CstmrCdtTrfInitn>
+</Document>
