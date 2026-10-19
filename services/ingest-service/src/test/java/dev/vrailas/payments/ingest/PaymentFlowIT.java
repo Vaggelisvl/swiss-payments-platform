@@ -187,14 +187,16 @@ class PaymentFlowIT {
         rabbit.convertAndSend(Topology.EXCHANGE, Topology.PAYMENT_BOOKED, new PaymentBooked(booked, "CH4431999123000889012",
                 new BigDecimal("1949.75"), "CHF", "QRR", "210000000003139471430009017", Instant.now()));
         rabbit.convertAndSend(Topology.EXCHANGE, Topology.PAYMENT_REJECTED, new PaymentRejected(rejected, "INSUFFICIENT_FUNDS", "Not enough funds", Instant.now()));
-        // a later contradictory event must not overwrite a final state
-        rabbit.convertAndSend(Topology.EXCHANGE, Topology.PAYMENT_REJECTED, new PaymentRejected(booked, "LATE", "late", Instant.now()));
-
         await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
             mvc.perform(get("/api/v1/payments/" + booked)).andExpect(jsonPath("$.status").value("BOOKED"));
             mvc.perform(get("/api/v1/payments/" + rejected)).andExpect(jsonPath("$.status").value("REJECTED"))
                     .andExpect(jsonPath("$.rejectionCode").value("INSUFFICIENT_FUNDS"));
         });
+
+        // A contradictory event arriving later must not overwrite a final state (outcomes travel on separate queues).
+        rabbit.convertAndSend(Topology.EXCHANGE, Topology.PAYMENT_REJECTED, new PaymentRejected(booked, "LATE", "late", Instant.now()));
+        await().during(2, TimeUnit.SECONDS).atMost(6, TimeUnit.SECONDS).untilAsserted(() ->
+                mvc.perform(get("/api/v1/payments/" + booked)).andExpect(jsonPath("$.status").value("BOOKED")));
         mvc.perform(get("/api/v1/payments/" + UUID.randomUUID())).andExpect(status().isNotFound());
         assertThat(meters.find("payments.received").tag("channel", "json").counter()).isNotNull();
     }

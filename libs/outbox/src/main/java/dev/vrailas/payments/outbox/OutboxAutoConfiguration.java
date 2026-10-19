@@ -5,6 +5,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -14,8 +15,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 
-/** Registers the outbox store and relay in every service that has the library on its classpath. */
+/** Registers the outbox store and relay in every service that has the library on its classpath ({@code outbox.enabled=false} opts out). */
 @AutoConfiguration
+@ConditionalOnProperty(prefix = "outbox", name = "enabled", matchIfMissing = true)
 @EnableScheduling
 @EnableConfigurationProperties(OutboxProperties.class)
 public class OutboxAutoConfiguration {

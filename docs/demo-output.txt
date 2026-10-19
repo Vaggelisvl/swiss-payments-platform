@@ -1,0 +1,54 @@
+
+== 1. Fund the debtor account at the processor (5000.00 CHF)
+{"iban":"CH9300762011623852957","currency":"CHF","balance":5000.00}
+
+== 2. Register an invoice at reconciliation (1949.75 CHF, QR reference 210000000003139471430009017)
+{"id":"16dc2b0c-8c76-4281-9bd8-9aba1c26a931","reference":"210000000003139471430009017","amount":1949.75,"status":"OPEN"}
+
+== 3. Submit the payment with an Idempotency-Key (HTTP 202, accepted asynchronously)
+{"paymentId":"946c1a33-2571-4fdc-ac85-f690c75a73e9","status":"RECEIVED"}
+HTTP 202
+
+== 4. Retry with the same key (network timeout simulation): HTTP 200, same payment, nothing duplicated
+HTTP/1.1 200 
+Idempotent-Replayed: true
+{"paymentId":"946c1a33-2571-4fdc-ac85-f690c75a73e9","status":"RECEIVED"}
+
+== 5. The processor books it; the ingest read model follows through events
+{"paymentId":"946c1a33-2571-4fdc-ac85-f690c75a73e9","status":"BOOKED","amount":1949.75,"currency":"CHF"}
+{"iban":"CH9300762011623852957","balance":3050.25}
+
+== 6. Reconciliation matched the credit by QR reference: invoice is PAID
+{"status":"PAID","amount":1949.75,"paidAmount":1949.75}
+
+== 7. A payment the debtor cannot afford is rejected with a stable reason code
+{"status":"REJECTED","rejectionCode":"INSUFFICIENT_FUNDS","rejectionReason":"Insufficient funds on the debtor account"}
+
+== 8. Business rules and validation: invalid input never enters the system (HTTP 422, RFC 9457 problem details)
+{"title":"Invalid payment","status":422,"detail":"QR reference check digit is invalid"}
+
+== 9. ISO 20022 pain.001 file with two transfers (second one is in EUR from a CHF account)
+{"paymentId":"aad171f5-68cb-40d6-a6b4-05d42538c72c","amount":1949.75,"currency":"CHF"}
+{"paymentId":"1e254626-a0d3-43c7-baa8-196c81983962","amount":20.00,"currency":"EUR"}
+{"status":"BOOKED","rejectionCode":null}
+{"status":"REJECTED","rejectionCode":"CURRENCY_MISMATCH"}
+
+== 10. The first pain.001 transfer paid the same invoice again: reconciliation flags it for review
+{"entryId":"event:aad171f5-68cb-40d6-a6b4-05d42538c72c","reference":"210000000003139471430009017","amount":1949.75,"result":"OVERPAID"}
+
+== 11. Bank statement import (camt.054): a second invoice is settled from the file; re-importing changes nothing
+{"reference":"000000000000000017924153556","status":"OPEN"}
+first import: {"credits":1,"duplicates":0,"results":{"MATCHED":1}}
+second import: {"credits":1,"duplicates":1,"results":{}}
+
+== 12. Metrics (Prometheus format)
+outbox_published_total 4.0
+payments_duplicates_total{channel="json"} 1.0
+payments_received_total{channel="json"} 2.0
+payments_received_total{channel="pain001"} 2.0
+outbox_published_total 4.0
+payments_booked_total 2.0
+payments_rejected_total{reason="CURRENCY_MISMATCH"} 1.0
+payments_rejected_total{reason="INSUFFICIENT_FUNDS"} 1.0
+reconciliation_credits_total{result="MATCHED"} 2.0
+reconciliation_credits_total{result="OVERPAID"} 1.0

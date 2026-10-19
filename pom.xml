@@ -23,7 +23,7 @@
     <module>libs/outbox</module>
     <module>services/ingest-service</module>
     <module>services/processor-service</module>
-    <!--<module>services/reconciliation-service</module>-->
+    <module>services/reconciliation-service</module>
   </modules>
 
   <properties>

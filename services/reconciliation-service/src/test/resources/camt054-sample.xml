@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.054.001.04">
+  <BkToCstmrDbtCdtNtfctn>
+    <GrpHdr><MsgId>MSG-054-1</MsgId></GrpHdr>
+    <Ntfctn>
+      <Id>NTF-${RUN}</Id>
+      <Ntry>
+        <Amt Ccy="CHF">${AMOUNT1}</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <BookgDt><Dt>2026-10-19</Dt></BookgDt>
+        <AcctSvcrRef>ASR-${RUN}-1</AcctSvcrRef>
+        <NtryDtls><TxDtls><RmtInf><Strd><CdtrRefInf>
+          <Tp><CdOrPrtry><Prtry>QRR</Prtry></CdOrPrtry></Tp>
+          <Ref>${REF1}</Ref>
+        </CdtrRefInf></Strd></RmtInf></TxDtls></NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="CHF">50.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <BookgDt><Dt>2026-10-19</Dt></BookgDt>
+        <AcctSvcrRef>ASR-${RUN}-2</AcctSvcrRef>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="CHF">12.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <BookgDt><Dt>2026-10-19</Dt></BookgDt>
+        <NtryDtls><TxDtls><RmtInf><Strd><CdtrRefInf>
+          <Ref>${REF2}</Ref>
+        </CdtrRefInf></Strd></RmtInf></TxDtls></NtryDtls>
+      </Ntry>
+    </Ntfctn>
+  </BkToCstmrDbtCdtNtfctn>
+</Document>

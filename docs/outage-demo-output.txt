@@ -1,0 +1,13 @@
+
+== Fund a fresh account
+{"iban":"CH5604835012345678009","balance":100.00}
+
+== Stop the message broker
+
+== Submit a payment while the broker is DOWN: it is accepted and stored (HTTP 202)
+{"paymentId":"3c7c8ec1-ca67-427d-8d7e-c59d08d982a9","status":"RECEIVED","debtorIban":"CH5604835012345678009","creditorIban":"DE89370400440532013000","amount":25.00,"currency":"CHF","rejectionCode":null,"rejectionReason":null,"createdAt":"2026-10-19T13:09:33.225598027Z","updatedAt":"2026-10-19T13:09:33.225598027Z"}
+status while broker is down: RECEIVED  (event waits in the outbox table)
+
+== Start the broker again
+status after recovery: BOOKED  (nothing lost, nothing duplicated)
+{"iban":"CH5604835012345678009","balance":75.00}

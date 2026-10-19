@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 10s
+
+scrape_configs:
+  - job_name: payments
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['ingest:8080', 'processor:8080', 'reconciliation:8080']
