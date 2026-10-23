@@ -33,6 +33,7 @@ flowchart LR
 | `ingest-service` | Accepts payments, deduplicates by `Idempotency-Key`, parses `pain.001`, publishes `PaymentReceived`, keeps the queryable payment status | `ingest` |
 | `processor-service` | Rule engine (limits, deny list, same account), double-entry ledger, publishes `PaymentBooked` / `PaymentRejected` | `processor` |
 | `reconciliation-service` | Matches credits (events and `camt.054`) to invoices: paid, partial, overpaid, unmatched, wrong currency | `reconciliation` |
+| `exception-assistant` | Explains an exception (rejection code, unmatched credit) to an operator with Gemini: cause, next step, severity. Stateless, read-only, falls back to a built-in catalogue | none |
 
 Shared libraries: `payments-domain` (validated value objects: IBAN, QR/creditor reference, money), `payments-contracts` (event records and topology names), `outbox` (transactional outbox store + relay).
 
@@ -58,7 +59,7 @@ docker compose -f deploy/docker-compose.yml up --build   # PostgreSQL, RabbitMQ,
 ./scripts/outage-demo.sh                                  # broker outage: nothing is lost
 ```
 
-Ports: ingest `8081`, processor `8082`, reconciliation `8083`, RabbitMQ UI `15672` (guest/guest), Prometheus `9090`.
+Ports: ingest `8081`, processor `8082`, reconciliation `8083`, exception-assistant `8084`, RabbitMQ UI `15672` (guest/guest), Prometheus `9090`.
 
 Without Docker, start PostgreSQL (databases `ingest`, `processor`, `reconciliation`, user/password `payments`) and RabbitMQ locally, then `mvn install -DskipTests` and `java -jar services/<name>/target/<name>-1.0.0-SNAPSHOT.jar`.
 
@@ -80,6 +81,7 @@ The integration tests (`*IT`) cover idempotent intake incl. a race of 8 parallel
 | `POST /api/v1/invoices`, `GET /api/v1/invoices/{id}` | reconciliation | invoice with QRR/SCOR reference |
 | `POST /api/v1/camt054` | reconciliation | bank statement import, deduplicated |
 | `GET /api/v1/reconciliation/review` | reconciliation | unmatched, wrong-currency and overpaid credits |
+| `POST /api/v1/exceptions/explain` | exception-assistant | `{source, code, detail?, attributes?}` -> cause, suggestedAction, severity, origin (`AI` or `CATALOGUE`) |
 
 A complete recorded run is in [`docs/demo-output.txt`](docs/demo-output.txt) and the outage scenario in [`docs/outage-demo-output.txt`](docs/outage-demo-output.txt). Excerpt:
 
@@ -90,6 +92,15 @@ Idempotent-Replayed: true
 {"status":"REJECTED","rejectionCode":"INSUFFICIENT_FUNDS", ...}
 == 10. The first pain.001 transfer paid the same invoice again: reconciliation flags it for review
 {"reference":"2100...9017","amount":1949.75,"result":"OVERPAID"}
+```
+
+## Exception assistant (Gemini)
+
+Set `GEMINI_API_KEY` (model via `GEMINI_MODEL`, default `gemini-3.5-flash`) to let `exception-assistant` use Gemini; without it every answer comes from the catalogue (`origin: CATALOGUE`). IBANs and QR references are masked before anything is sent to the model, the exception text is passed as untrusted data, the answer is forced into a JSON schema, and any model failure falls back to the catalogue. The assistant only advises: it cannot change a payment.
+
+```bash
+curl -X POST localhost:8084/api/v1/exceptions/explain -H 'Content-Type: application/json' \
+  -d '{"source":"processor","code":"INSUFFICIENT_FUNDS","detail":"balance too low"}'
 ```
 
 ## Scope and limitations

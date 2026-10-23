@@ -45,7 +45,7 @@ jobs:
     needs: build
     strategy:
       matrix:
-        service: [ingest-service, processor-service, reconciliation-service]
+        service: [ingest-service, processor-service, reconciliation-service, exception-assistant]
     steps:
       - uses: actions/checkout@v4
       - name: Build image

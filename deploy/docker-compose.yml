@@ -75,6 +75,19 @@ services:
     ports:
       - "8083:8080"
 
+  assistant:
+    restart: unless-stopped
+    build:
+      context: ..
+      args:
+        SERVICE: exception-assistant
+    environment:
+      PORT: "8080"
+      # Optional: without a key the assistant answers from its built-in catalogue.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    ports:
+      - "8084:8080"
+
   prometheus:
     image: prom/prometheus:v2.55.1
     volumes:
@@ -85,6 +98,7 @@ services:
       - ingest
       - processor
       - reconciliation
+      - assistant
 
 volumes:
   postgres-data:

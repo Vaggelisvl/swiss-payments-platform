@@ -1,0 +1,36 @@
+server:
+  port: ${PORT:8084}
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+
+spring:
+  application:
+    name: exception-assistant
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  mvc:
+    problemdetails:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+assistant:
+  gemini:
+    # Without a key the assistant still works: it answers from the built-in catalogue.
+    api-key: ${GEMINI_API_KEY:}
+    model: ${GEMINI_MODEL:gemini-3.5-flash}
+    base-url: https://generativelanguage.googleapis.com
+    timeout: 10s
