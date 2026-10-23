@@ -28,6 +28,8 @@ management:
       application: ${spring.application.name}
 
 assistant:
+  # When set, /api/** requires the header X-Access-Token with this value.
+  access-token: ${ASSISTANT_ACCESS_TOKEN:}
   gemini:
     # Without a key the assistant still works: it answers from the built-in catalogue.
     api-key: ${GEMINI_API_KEY:}

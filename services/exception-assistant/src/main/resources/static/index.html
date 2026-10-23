@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exception Assistant</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1c2128; --muted:#667085; --line:#d9dde3; --accent:#c8102e;
+          --low:#1a7f4b; --medium:#9a6700; --high:#c8102e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1318; --card:#181d24; --text:#e6e9ee; --muted:#98a2b3; --line:#2b323c; --accent:#ff4d62;
+            --low:#4cc38a; --medium:#e3b341; --high:#ff6b7a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui, sans-serif; }
+  main { max-width:680px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:1.4rem; margin:0 0 4px; }
+  p.sub { color:var(--muted); margin:0 0 20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  label { display:block; font-weight:600; font-size:.85rem; margin:12px 0 4px; }
+  label:first-child { margin-top:0; }
+  input, select, textarea { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:6px;
+                            background:var(--bg); color:var(--text); font:inherit; }
+  textarea { min-height:70px; resize:vertical; font-family:ui-monospace, monospace; font-size:.85rem; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:520px) { .row { grid-template-columns:1fr; } }
+  button { margin-top:16px; padding:9px 18px; border:0; border-radius:6px; background:var(--accent); color:#fff;
+           font:inherit; font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:wait; }
+  .badges { display:flex; gap:8px; margin-bottom:10px; }
+  .badge { font-size:.75rem; font-weight:700; padding:2px 8px; border-radius:99px; border:1px solid currentColor; }
+  .LOW { color:var(--low); } .MEDIUM { color:var(--medium); } .HIGH { color:var(--high); }
+  .AI, .CATALOGUE { color:var(--muted); }
+  h2 { font-size:.8rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:14px 0 2px; }
+  h2:first-of-type { margin-top:0; }
+  .err { color:var(--high); }
+  .hint { color:var(--muted); font-size:.8rem; margin-top:6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Exception Assistant</h1>
+  <p class="sub">Explains a payment exception and suggests the next step. Advice only: nothing is changed.</p>
+
+  <form class="card" id="form">
+    <label for="example">Example</label>
+    <select id="example"></select>
+    <div class="row">
+      <div><label for="source">Source</label><input id="source" required maxlength="50" value="processor"></div>
+      <div><label for="code">Code</label><input id="code" required maxlength="100" value="INSUFFICIENT_FUNDS"></div>
+    </div>
+    <label for="detail">Detail</label>
+    <textarea id="detail" maxlength="1000" placeholder="Free text from the log or the review list"></textarea>
+    <label for="attrs">Attributes (one key=value per line)</label>
+    <textarea id="attrs" placeholder="debtor=CH9300762011623852957"></textarea>
+    <p class="hint">IBANs and QR references are masked on the server before anything reaches the model.</p>
+    <label for="token">Access token (only if the server requires one)</label>
+    <input id="token" type="password" autocomplete="off">
+    <button id="go" type="submit">Explain</button>
+  </form>
+
+  <section class="card" id="result" hidden aria-live="polite">
+    <div class="badges"><span class="badge" id="sev"></span><span class="badge" id="origin"></span></div>
+    <h2>Cause</h2><p id="cause"></p>
+    <h2>Suggested action</h2><p id="action"></p>
+  </section>
+  <p class="err" id="error" role="alert"></p>
+</main>
+<script>
+const EXAMPLES = [
+  ["processor", "INSUFFICIENT_FUNDS", "Balance too low for the payment", "debtor=CH9300762011623852957"],
+  ["processor", "DENYLISTED_ACCOUNT", "", "creditor=DE89370400440532013000"],
+  ["processor", "AMOUNT_LIMIT_EXCEEDED", "Amount exceeds the limit of 100000", "amount=250000\ncurrency=CHF"],
+  ["reconciliation", "UNMATCHED", "Credit of CHF 150.00 matched no invoice", "reference=210000000003139471430009017"],
+  ["reconciliation", "OVERPAID", "Invoice received CHF 220.00 for CHF 200.00", ""],
+  ["reconciliation", "CURRENCY_MISMATCH", "Invoice is in EUR, credit arrived in CHF", ""]
+];
+const $ = id => document.getElementById(id);
+$("example").append(new Option("Custom", -1), ...EXAMPLES.map((e, i) => new Option(e[0] + " / " + e[1], i)));
+$("example").addEventListener("change", () => {
+  const e = EXAMPLES[$("example").value]; if (!e) return;
+  [$("source").value, $("code").value, $("detail").value, $("attrs").value] = e;
+});
+$("form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  $("error").textContent = ""; $("go").disabled = true;
+  const attributes = {};
+  $("attrs").value.split("\n").filter(l => l.includes("=")).forEach(l => {
+    const i = l.indexOf("="); attributes[l.slice(0, i).trim()] = l.slice(i + 1).trim();
+  });
+  const headers = { "Content-Type": "application/json" };
+  if ($("token").value) headers["X-Access-Token"] = $("token").value;
+  try {
+    const res = await fetch("/api/v1/exceptions/explain", { method: "POST", headers,
+      body: JSON.stringify({ source: $("source").value, code: $("code").value, detail: $("detail").value, attributes }) });
+    if (!res.ok) throw new Error(res.status === 401 ? "Access token missing or wrong." : "Request failed (" + res.status + ").");
+    const r = await res.json();
+    $("sev").textContent = r.severity; $("sev").className = "badge " + r.severity;
+    $("origin").textContent = r.origin === "AI" ? "Gemini" : "Catalogue"; $("origin").className = "badge " + r.origin;
+    $("cause").textContent = r.cause; $("action").textContent = r.suggestedAction;
+    $("result").hidden = false;
+  } catch (e) { $("error").textContent = e.message; $("result").hidden = true; }
+  finally { $("go").disabled = false; }
+});
+</script>
+</body>
+</html>

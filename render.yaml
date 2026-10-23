@@ -1,0 +1,14 @@
+# Render blueprint: deploys only the exception assistant (UI + API) from the shared Dockerfile.
+services:
+  - type: web
+    name: exception-assistant
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health/readiness
+    envVars:
+      - key: SERVICE            # Docker build arg of the shared Dockerfile
+        value: exception-assistant
+      - key: GEMINI_API_KEY
+        sync: false             # asked for in the Render dashboard, never stored in git
+      - key: ASSISTANT_ACCESS_TOKEN
+        generateValue: true     # shown in the dashboard; enter it in the UI

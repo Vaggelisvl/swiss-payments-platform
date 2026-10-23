@@ -103,6 +103,8 @@ curl -X POST localhost:8084/api/v1/exceptions/explain -H 'Content-Type: applicat
   -d '{"source":"processor","code":"INSUFFICIENT_FUNDS","detail":"balance too low"}'
 ```
 
+The service also serves a small UI at `/` (pick an example or paste an exception, get cause, next step and severity). To protect the Gemini quota on a public deployment, set `ASSISTANT_ACCESS_TOKEN`: `/api/**` then requires the header `X-Access-Token` (the UI has a field for it). `render.yaml` deploys the service on Render: *New > Blueprint*, connect the repo, enter `GEMINI_API_KEY`.
+
 ## Scope and limitations
 
 This is a demonstration, not a bank. Deliberately out of scope: authentication/authorization (the demo account API is open), a real sanctions list, multi-currency conversion, a schema registry, distributed tracing, an HA broker/database topology, and the full ISO 20022 message variety (only the elements needed here are read). The compose file and Dockerfile are written for local use; I verified the services with real PostgreSQL and RabbitMQ processes, but have not run the Docker build in CI yet.
