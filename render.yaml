@@ -3,6 +3,7 @@ services:
   - type: web
     name: exception-assistant
     runtime: docker
+    plan: free
     dockerfilePath: ./Dockerfile
     healthCheckPath: /actuator/health/readiness
     envVars:
