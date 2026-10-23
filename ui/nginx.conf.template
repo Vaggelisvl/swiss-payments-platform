@@ -1,0 +1,15 @@
+server {
+    listen 80;
+    root /usr/share/nginx/html;
+    client_max_body_size 6m;
+    resolver ${DNS_RESOLVER} valid=10s;   # lazy lookup: the UI starts even if a service is still down
+    proxy_read_timeout 20s;
+
+    location = / { try_files /index.html =404; }
+
+    # /svc/<name>/<path> -> http://<name upstream>/<path>
+    location ~ ^/svc/ingest/(.*)$         { set $up ${INGEST_UPSTREAM};         proxy_pass http://$up/$1$is_args$args; }
+    location ~ ^/svc/processor/(.*)$      { set $up ${PROCESSOR_UPSTREAM};      proxy_pass http://$up/$1$is_args$args; }
+    location ~ ^/svc/reconciliation/(.*)$ { set $up ${RECONCILIATION_UPSTREAM}; proxy_pass http://$up/$1$is_args$args; }
+    location ~ ^/svc/assistant/(.*)$      { set $up ${ASSISTANT_UPSTREAM};      proxy_pass http://$up/$1$is_args$args; }
+}

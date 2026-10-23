@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Payments Dashboard</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1c2128; --muted:#667085; --line:#d9dde3; --accent:#c8102e;
+          --ok:#1a7f4b; --warn:#9a6700; --bad:#c8102e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1318; --card:#181d24; --text:#e6e9ee; --muted:#98a2b3; --line:#2b323c; --accent:#ff4d62;
+            --ok:#4cc38a; --warn:#e3b341; --bad:#ff6b7a; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui, sans-serif; }
+  header { border-bottom:1px solid var(--line); background:var(--card); }
+  .wrap { max-width:960px; margin:0 auto; padding:0 16px; }
+  .top { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0 0; flex-wrap:wrap; }
+  h1 { font-size:1.15rem; margin:0; }
+  nav { display:flex; gap:4px; overflow-x:auto; }
+  nav button { background:none; border:0; border-bottom:3px solid transparent; border-radius:0; color:var(--muted);
+               padding:10px 12px; font:inherit; font-weight:600; cursor:pointer; margin:0; white-space:nowrap; }
+  nav button[aria-selected=true] { color:var(--text); border-bottom-color:var(--accent); }
+  main { padding:20px 0 56px; }
+  section[hidden] { display:none; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  h2 { font-size:1rem; margin:0 0 10px; }
+  label { display:block; font-weight:600; font-size:.82rem; margin:10px 0 3px; }
+  input, select, textarea { width:100%; padding:7px 10px; border:1px solid var(--line); border-radius:6px;
+                            background:var(--bg); color:var(--text); font:inherit; }
+  textarea { font-family:ui-monospace, monospace; font-size:.82rem; min-height:90px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:0 12px; }
+  button { padding:8px 16px; border:0; border-radius:6px; background:var(--accent); color:#fff; font:inherit;
+           font-weight:600; cursor:pointer; margin-top:12px; }
+  button.ghost { background:none; border:1px solid var(--line); color:var(--text); }
+  button.small { padding:3px 10px; margin:0; font-size:.8rem; }
+  button:disabled { opacity:.6; cursor:wait; }
+  table { width:100%; border-collapse:collapse; font-size:.85rem; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:.75rem; text-transform:uppercase; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  code { font-family:ui-monospace, monospace; font-size:.8rem; }
+  .badge { font-size:.72rem; font-weight:700; padding:1px 8px; border-radius:99px; border:1px solid currentColor; white-space:nowrap; }
+  .ok { color:var(--ok); } .warn { color:var(--warn); } .bad { color:var(--bad); } .muted { color:var(--muted); }
+  .msg { margin:10px 0 0; font-size:.85rem; white-space:pre-wrap; }
+  .health { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:12px; }
+  .health div { border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  pre { background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:10px; font-size:.8rem; overflow:auto; margin:10px 0 0; max-height:260px; }
+  .explain { background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:8px 10px; margin-top:6px; font-size:.85rem; }
+  .row-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .tablewrap { overflow-x:auto; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <h1>Swiss payments platform</h1>
+      <label style="margin:0;font-weight:400;display:flex;gap:6px;align-items:center">
+        <span class="muted">Assistant token</span>
+        <input id="atoken" type="password" autocomplete="off" style="width:140px" placeholder="if required">
+      </label>
+    </div>
+    <nav role="tablist" id="tabs"></nav>
+  </div>
+</header>
+<main class="wrap">
+
+<section id="overview">
+  <div class="card"><h2>Services</h2><div class="health" id="health"></div></div>
+  <div class="card">
+    <h2>Guided demo</h2>
+    <p class="muted" style="margin:0">Funds a debtor account, registers a QR invoice and sends the matching payment. The processor books it and reconciliation marks the invoice as paid, asynchronously through the events.</p>
+    <button id="demo">Run demo</button>
+    <pre id="demolog" hidden></pre>
+  </div>
+</section>
+
+<section id="payments" hidden>
+  <div class="card">
+    <h2>New payment</h2>
+    <form id="payform">
+      <div class="grid">
+        <div><label for="p-debtor">Debtor IBAN</label><input id="p-debtor" required value="CH9300762011623852957"></div>
+        <div><label for="p-creditor">Creditor IBAN</label><input id="p-creditor" required value="DE89370400440532013000"></div>
+        <div><label for="p-amount">Amount</label><input id="p-amount" type="number" step="0.01" min="0.01" required value="100.00"></div>
+        <div><label for="p-cur">Currency</label><select id="p-cur"><option>CHF</option><option>EUR</option></select></div>
+        <div><label for="p-rtype">Reference type</label><select id="p-rtype"><option value="">none</option><option>QRR</option><option>SCOR</option></select></div>
+        <div><label for="p-ref">Reference</label><input id="p-ref"></div>
+      </div>
+      <label for="p-rem">Remittance information</label><input id="p-rem" maxlength="140">
+      <label for="p-key">Idempotency-Key <span class="muted">(reuse the same key to simulate a client retry)</span></label>
+      <input id="p-key" required>
+      <button type="submit">Send payment</button>
+      <button type="button" class="ghost" id="newkey">New key</button>
+      <p class="msg" id="paymsg"></p>
+    </form>
+  </div>
+  <div class="card">
+    <h2>pain.001 file</h2>
+    <input type="file" id="pain-file" accept=".xml,text/xml,application/xml">
+    <button id="pain-send">Upload</button>
+    <p class="msg" id="painmsg"></p>
+  </div>
+  <div class="card">
+    <h2>Payments of this browser</h2>
+    <div class="tablewrap"><table><thead><tr><th>Payment</th><th>Status</th><th class="num">Amount</th><th>Detail</th><th></th></tr></thead><tbody id="paytable"></tbody></table></div>
+    <p class="muted" id="payempty">Nothing yet.</p>
+  </div>
+</section>
+
+<section id="accounts" hidden>
+  <div class="card">
+    <h2>Open or fund a ledger account (processor)</h2>
+    <form id="accform">
+      <div class="grid">
+        <div><label for="a-iban">IBAN</label><input id="a-iban" required value="CH9300762011623852957"></div>
+        <div><label for="a-cur">Currency</label><select id="a-cur"><option>CHF</option><option>EUR</option></select></div>
+        <div><label for="a-bal">Opening balance</label><input id="a-bal" type="number" step="0.01" min="0" value="5000.00" required></div>
+      </div>
+      <button type="submit">Open account</button>
+      <p class="msg" id="accmsg"></p>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Look up balance</h2>
+    <form id="acclookup"><label for="a-find">IBAN</label><input id="a-find" required value="CH9300762011623852957"><button type="submit">Look up</button></form>
+    <p class="msg" id="acclookupmsg"></p>
+  </div>
+</section>
+
+<section id="invoices" hidden>
+  <div class="card">
+    <h2>New invoice (reconciliation)</h2>
+    <form id="invform">
+      <div class="grid">
+        <div><label for="i-type">Reference type</label><select id="i-type"><option>QRR</option><option>SCOR</option></select></div>
+        <div><label for="i-ref">Reference</label><input id="i-ref" required></div>
+        <div><label for="i-amount">Amount</label><input id="i-amount" type="number" step="0.01" min="0.01" required value="1949.75"></div>
+        <div><label for="i-cur">Currency</label><select id="i-cur"><option>CHF</option><option>EUR</option></select></div>
+      </div>
+      <button type="submit">Create invoice</button>
+      <button type="button" class="ghost" id="genqr">Generate valid QR reference</button>
+      <p class="msg" id="invmsg"></p>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Invoices of this browser</h2>
+    <div class="tablewrap"><table><thead><tr><th>Reference</th><th>Status</th><th class="num">Amount</th><th class="num">Paid</th><th></th></tr></thead><tbody id="invtable"></tbody></table></div>
+    <p class="muted" id="invempty">Nothing yet.</p>
+  </div>
+</section>
+
+<section id="review" hidden>
+  <div class="card">
+    <h2>Import camt.054</h2>
+    <input type="file" id="camt-file" accept=".xml,text/xml,application/xml">
+    <button id="camt-send">Import</button>
+    <p class="msg" id="camtmsg"></p>
+  </div>
+  <div class="card">
+    <h2>Credits needing review</h2>
+    <button class="ghost" id="reload" style="margin:0 0 10px">Reload</button>
+    <div class="tablewrap"><table><thead><tr><th>Result</th><th>Reference</th><th class="num">Amount</th><th>Source</th><th></th></tr></thead><tbody id="reviewtable"></tbody></table></div>
+    <p class="muted" id="reviewempty">Nothing to review.</p>
+  </div>
+</section>
+
+</main>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const h = (tag, props = {}, ...kids) => {
+  const el = Object.assign(document.createElement(tag), props);
+  kids.flat().forEach(k => el.append(k instanceof Node ? k : document.createTextNode(k ?? "")));
+  return el;
+};
+const store = {
+  get(key) { try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; } },
+  set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* private mode */ } }
+};
+
+// ---- API ---------------------------------------------------------------------------------------------------------
+async function api(service, path, { method = "GET", json, body, headers = {} } = {}) {
+  const init = { method, headers: { ...headers } };
+  if (json !== undefined) { init.body = JSON.stringify(json); init.headers["Content-Type"] = "application/json"; }
+  if (body !== undefined) { init.body = body; init.headers["Content-Type"] = "application/xml"; }
+  let res;
+  try { res = await fetch(`/svc/${service}${path}`, init); }
+  catch { return { ok: false, status: 0, data: null, error: "Service not reachable" }; }
+  let data = null;
+  try { data = await res.json(); } catch { /* no body */ }
+  const error = res.ok ? null : (data && (data.detail || data.title)) || `HTTP ${res.status}`;
+  return { ok: res.ok, status: res.status, data, error, headers: res.headers };
+}
+const say = (el, text, cls = "") => { el.textContent = text; el.className = "msg " + cls; };
+const money = (a, c) => a == null ? "" : `${Number(a).toFixed(2)} ${c ?? ""}`;
+const statusClass = s => ({ BOOKED: "ok", PAID: "ok", MATCHED: "ok", REJECTED: "bad", OVERPAID: "warn", UNMATCHED: "bad", CURRENCY_MISMATCH: "bad" }[s] || "warn");
+const badge = s => h("span", { className: "badge " + statusClass(s) }, s);
+
+// ---- Tabs --------------------------------------------------------------------------------------------------------
+const TABS = [["overview", "Overview"], ["payments", "Payments"], ["accounts", "Accounts"], ["invoices", "Invoices"], ["review", "Reconciliation"]];
+function show(id) {
+  TABS.forEach(([t]) => { $(t).hidden = t !== id; });
+  [...$("tabs").children].forEach(b => b.setAttribute("aria-selected", b.dataset.tab === id));
+  try { location.hash = id; } catch { /* ignore */ }
+  if (id === "overview") checkHealth();
+  if (id === "payments") refreshPayments();
+  if (id === "invoices") refreshInvoices();
+  if (id === "review") loadReview();
+}
+TABS.forEach(([id, label]) => $("tabs").append(h("button", { role: "tab", textContent: label, onclick: () => show(id) }, )));
+[...$("tabs").children].forEach((b, i) => b.dataset.tab = TABS[i][0]);
+
+// ---- Overview ----------------------------------------------------------------------------------------------------
+async function checkHealth() {
+  const box = $("health"); box.replaceChildren();
+  for (const s of ["ingest", "processor", "reconciliation", "assistant"]) {
+    const cell = h("div", {}, h("strong", {}, s), h("br"), h("span", { className: "muted" }, "checking..."));
+    box.append(cell);
+    api(s, "/actuator/health").then(r => {
+      const up = r.ok && r.data && r.data.status === "UP";
+      cell.lastChild.className = up ? "ok" : "bad";
+      cell.lastChild.textContent = up ? "UP" : "DOWN";
+    });
+  }
+}
+
+const QR_TABLE = [0, 9, 4, 6, 8, 2, 7, 1, 3, 5];
+function qrReference(seed) {            // 26 digits plus the modulo 10 recursive check digit
+  const digits = String(seed).replace(/\D/g, "").padStart(26, "0").slice(-26);
+  let carry = 0;
+  for (const ch of digits) carry = QR_TABLE[(carry + Number(ch)) % 10];
+  return digits + ((10 - carry) % 10);
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+$("demo").onclick = async () => {
+  const log = $("demolog"); log.hidden = false; log.textContent = ""; $("demo").disabled = true;
+  const line = t => { log.textContent += t + "\n"; };
+  const DEBTOR = "CH9300762011623852957", QR_IBAN = "CH4431999123000889012";
+  const ref = qrReference(Date.now());
+  try {
+    let r = await api("processor", "/api/v1/accounts", { method: "POST", json: { iban: DEBTOR, currency: "CHF", balance: 5000 } });
+    line(`1. Account ${DEBTOR}: ${r.ok ? "opened with 5000.00 CHF" : r.error + " (already exists is fine)"}`);
+    r = await api("reconciliation", "/api/v1/invoices", { method: "POST", json: { referenceType: "QRR", reference: ref, amount: 1949.75, currency: "CHF" } });
+    if (!r.ok) throw new Error("Invoice: " + r.error);
+    const invoice = r.data; rememberInvoice(invoice.id);
+    line(`2. Invoice ${ref} for 1949.75 CHF: ${invoice.status}`);
+    r = await api("ingest", "/api/v1/payments", { method: "POST", headers: { "Idempotency-Key": "ui-demo-" + Date.now() },
+      json: { debtorIban: DEBTOR, creditorIban: QR_IBAN, amount: 1949.75, currency: "CHF", reference: { type: "QRR", value: ref }, remittanceInformation: "Demo" } });
+    if (!r.ok) throw new Error("Payment: " + r.error);
+    const payment = r.data; rememberPayment(payment.paymentId);
+    line(`3. Payment ${payment.paymentId.slice(0, 8)} accepted: ${payment.status}`);
+    for (let i = 0; i < 30; i++) {
+      await sleep(1000);
+      const p = (await api("ingest", `/api/v1/payments/${payment.paymentId}`)).data;
+      const inv = (await api("reconciliation", `/api/v1/invoices/${invoice.id}`)).data;
+      line(`   payment ${p && p.status}, invoice ${inv && inv.status}`);
+      if (p && p.status !== "RECEIVED" && inv && inv.status === "PAID") { line("Done: booked and reconciled."); break; }
+      if (p && p.status === "REJECTED") { line("Rejected: " + p.rejectionCode); break; }
+    }
+  } catch (e) { line("Failed: " + e.message); }
+  $("demo").disabled = false;
+};
+
+// ---- Payments ----------------------------------------------------------------------------------------------------
+const newKey = () => "ui-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+$("p-key").value = newKey();
+$("newkey").onclick = () => { $("p-key").value = newKey(); };
+const rememberPayment = id => { const l = store.get("fp.payments").filter(x => x !== id); l.unshift(id); store.set("fp.payments", l.slice(0, 20)); };
+const rememberInvoice = id => { const l = store.get("fp.invoices").filter(x => x !== id); l.unshift(id); store.set("fp.invoices", l.slice(0, 20)); };
+
+$("payform").onsubmit = async ev => {
+  ev.preventDefault();
+  const type = $("p-rtype").value;
+  const json = { debtorIban: $("p-debtor").value.trim(), creditorIban: $("p-creditor").value.trim(), amount: Number($("p-amount").value),
+    currency: $("p-cur").value, remittanceInformation: $("p-rem").value || null,
+    reference: type ? { type, value: $("p-ref").value.trim() } : null };
+  const r = await api("ingest", "/api/v1/payments", { method: "POST", json, headers: { "Idempotency-Key": $("p-key").value } });
+  if (!r.ok) return say($("paymsg"), `${r.status || ""} ${r.error}`, "bad");
+  const replay = r.headers.get("Idempotent-Replayed") === "true";
+  say($("paymsg"), replay ? `Replay of the same key: ${r.data.paymentId} (nothing duplicated)` : `Accepted: ${r.data.paymentId}`, replay ? "warn" : "ok");
+  rememberPayment(r.data.paymentId); refreshPayments();
+};
+$("pain-send").onclick = async () => {
+  const file = $("pain-file").files[0]; if (!file) return say($("painmsg"), "Choose a file first.", "warn");
+  const r = await api("ingest", "/api/v1/payments/pain001", { method: "POST", body: await file.text() });
+  if (!r.ok) return say($("painmsg"), r.error, "bad");
+  r.data.forEach(p => rememberPayment(p.paymentId));
+  say($("painmsg"), `${r.data.length} payment(s) accepted.`, "ok"); refreshPayments();
+};
+
+let payTimer;
+async function refreshPayments() {
+  clearTimeout(payTimer);
+  const ids = store.get("fp.payments"), body = $("paytable"); body.replaceChildren();
+  $("payempty").hidden = ids.length > 0;
+  let pending = false;
+  const rows = await Promise.all(ids.map(id => api("ingest", `/api/v1/payments/${id}`)));
+  rows.forEach(r => {
+    if (!r.ok) return;
+    const p = r.data; pending ||= p.status === "RECEIVED";
+    const explainBox = h("div");
+    const action = p.status === "REJECTED"
+      ? h("button", { className: "small ghost", textContent: "Explain", onclick: () => explain(explainBox, { source: "processor", code: p.rejectionCode, detail: p.rejectionReason,
+          attributes: { debtor: p.debtorIban, creditor: p.creditorIban, amount: String(p.amount), currency: p.currency } }) }) : "";
+    body.append(h("tr", {}, h("td", {}, h("code", {}, p.paymentId.slice(0, 8)), h("br"), h("span", { className: "muted" }, `${p.debtorIban} → ${p.creditorIban}`)),
+      h("td", {}, badge(p.status)), h("td", { className: "num" }, money(p.amount, p.currency)),
+      h("td", {}, p.rejectionCode ? `${p.rejectionCode}: ${p.rejectionReason ?? ""}` : "", explainBox), h("td", {}, action)));
+  });
+  if (pending && !$("payments").hidden) payTimer = setTimeout(refreshPayments, 3000);
+}
+
+// ---- Accounts ----------------------------------------------------------------------------------------------------
+$("accform").onsubmit = async ev => {
+  ev.preventDefault();
+  const r = await api("processor", "/api/v1/accounts", { method: "POST", json: { iban: $("a-iban").value.trim(), currency: $("a-cur").value, balance: Number($("a-bal").value) } });
+  say($("accmsg"), r.ok ? `Opened ${r.data.iban}: ${money(r.data.balance, r.data.currency)}` : `${r.status} ${r.error}`, r.ok ? "ok" : "bad");
+};
+$("acclookup").onsubmit = async ev => {
+  ev.preventDefault();
+  const r = await api("processor", `/api/v1/accounts/${encodeURIComponent($("a-find").value.trim())}`);
+  say($("acclookupmsg"), r.ok ? `${r.data.iban}: ${money(r.data.balance, r.data.currency)}` : `${r.status} ${r.error}`, r.ok ? "ok" : "bad");
+};
+
+// ---- Invoices ----------------------------------------------------------------------------------------------------
+$("genqr").onclick = () => { $("i-type").value = "QRR"; $("i-ref").value = qrReference(Date.now()); };
+$("invform").onsubmit = async ev => {
+  ev.preventDefault();
+  const r = await api("reconciliation", "/api/v1/invoices", { method: "POST", json: { referenceType: $("i-type").value, reference: $("i-ref").value.trim(), amount: Number($("i-amount").value), currency: $("i-cur").value } });
+  if (!r.ok) return say($("invmsg"), `${r.status} ${r.error}`, "bad");
+  say($("invmsg"), `Created invoice ${r.data.id}`, "ok"); rememberInvoice(r.data.id); refreshInvoices();
+};
+async function refreshInvoices() {
+  const ids = store.get("fp.invoices"), body = $("invtable"); body.replaceChildren(); $("invempty").hidden = ids.length > 0;
+  (await Promise.all(ids.map(id => api("reconciliation", `/api/v1/invoices/${id}`)))).forEach(r => {
+    if (!r.ok) return; const i = r.data;
+    body.append(h("tr", {}, h("td", {}, h("code", {}, i.reference), h("br"), h("span", { className: "muted" }, i.referenceType)),
+      h("td", {}, badge(i.status)), h("td", { className: "num" }, money(i.amount, i.currency)), h("td", { className: "num" }, money(i.paidAmount, i.currency)), h("td")));
+  });
+}
+
+// ---- Reconciliation ----------------------------------------------------------------------------------------------
+$("camt-send").onclick = async () => {
+  const file = $("camt-file").files[0]; if (!file) return say($("camtmsg"), "Choose a file first.", "warn");
+  const r = await api("reconciliation", "/api/v1/camt054", { method: "POST", body: await file.text() });
+  if (!r.ok) return say($("camtmsg"), r.error, "bad");
+  say($("camtmsg"), `${r.data.credits} credit(s), ${r.data.duplicates} duplicate(s). ${Object.entries(r.data.results).map(([k, v]) => `${k}: ${v}`).join(", ")}`, "ok");
+  loadReview();
+};
+$("reload").onclick = () => loadReview();
+async function loadReview() {
+  const r = await api("reconciliation", "/api/v1/reconciliation/review"), body = $("reviewtable"); body.replaceChildren();
+  if (!r.ok) { $("reviewempty").hidden = false; $("reviewempty").textContent = r.error; return; }
+  $("reviewempty").hidden = r.data.length > 0; $("reviewempty").textContent = "Nothing to review.";
+  r.data.forEach(c => {
+    const box = h("div");
+    body.append(h("tr", {}, h("td", {}, badge(c.result)), h("td", {}, h("code", {}, c.reference ?? "(none)")), h("td", { className: "num" }, money(c.amount, c.currency)),
+      h("td", {}, c.source, box), h("td", {}, h("button", { className: "small ghost", textContent: "Explain", onclick: () => explain(box,
+        { source: "reconciliation", code: c.result, detail: "Credit needs manual review", attributes: { entryId: c.entryId, reference: c.reference ?? "", amount: String(c.amount), currency: c.currency } }) }))));
+  });
+}
+
+// ---- Assistant ---------------------------------------------------------------------------------------------------
+async function explain(box, exceptionCase) {
+  box.replaceChildren(h("div", { className: "explain muted" }, "Asking the assistant..."));
+  const token = $("atoken").value, headers = token ? { "X-Access-Token": token } : {};
+  const r = await api("assistant", "/api/v1/exceptions/explain", { method: "POST", json: exceptionCase, headers });
+  if (!r.ok) return box.replaceChildren(h("div", { className: "explain bad" }, r.status === 401 ? "Assistant token missing or wrong (top right)." : r.error));
+  const a = r.data;
+  box.replaceChildren(h("div", { className: "explain" }, h("span", { className: "badge " + ({ LOW: "ok", MEDIUM: "warn", HIGH: "bad" }[a.severity]) }, a.severity), " ",
+    h("span", { className: "muted" }, a.origin === "AI" ? "Gemini" : "Catalogue"), h("br"), h("strong", {}, "Cause: "), a.cause, h("br"), h("strong", {}, "Next step: "), a.suggestedAction));
+}
+
+show(TABS.some(([t]) => "#" + t === location.hash) ? location.hash.slice(1) : "overview");
+</script>
+</body>
+</html>

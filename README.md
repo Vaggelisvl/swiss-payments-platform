@@ -59,7 +59,7 @@ docker compose -f deploy/docker-compose.yml up --build   # PostgreSQL, RabbitMQ,
 ./scripts/outage-demo.sh                                  # broker outage: nothing is lost
 ```
 
-Ports: ingest `8081`, processor `8082`, reconciliation `8083`, exception-assistant `8084`, RabbitMQ UI `15672` (guest/guest), Prometheus `9090`.
+Dashboard: <http://localhost:3000> (see *Dashboard* below). Ports: ingest `8081`, processor `8082`, reconciliation `8083`, exception-assistant `8084`, RabbitMQ UI `15672` (guest/guest), Prometheus `9090`.
 
 Without Docker, start PostgreSQL (databases `ingest`, `processor`, `reconciliation`, user/password `payments`) and RabbitMQ locally, then `mvn install -DskipTests` and `java -jar services/<name>/target/<name>-1.0.0-SNAPSHOT.jar`.
 
@@ -104,6 +104,10 @@ curl -X POST localhost:8084/api/v1/exceptions/explain -H 'Content-Type: applicat
 ```
 
 The service also serves a small UI at `/` (pick an example or paste an exception, get cause, next step and severity). To protect the Gemini quota on a public deployment, set `ASSISTANT_ACCESS_TOKEN`: `/api/**` then requires the header `X-Access-Token` (the UI has a field for it). `render.yaml` deploys the service on Render: *New > Blueprint*, connect the repo, enter `GEMINI_API_KEY`.
+
+## Dashboard
+
+`ui/` is a static single page behind nginx (`docker compose -f deploy/docker-compose.yml up --build`, then <http://localhost:3000>). nginx proxies `/svc/<service>/...` to the four services, so the browser talks to one origin and no CORS is needed. Tabs: service health and a guided demo (fund account, QR invoice, payment, watch it get booked and reconciled), payments (JSON form with idempotency key, `pain.001` upload, live status), ledger accounts, invoices (with a valid QR reference generator), and the reconciliation review list with `camt.054` import. *Explain* buttons on rejected payments and review items ask the exception assistant. Needs the compose stack: PostgreSQL and RabbitMQ do not fit a free host, so only the assistant (with its own page) is deployed on Render.
 
 ## Scope and limitations
 

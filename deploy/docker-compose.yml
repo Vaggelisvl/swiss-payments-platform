@@ -88,6 +88,18 @@ services:
     ports:
       - "8084:8080"
 
+  ui:
+    restart: unless-stopped
+    build:
+      context: ../ui
+    ports:
+      - "3000:80"
+    depends_on:
+      - ingest
+      - processor
+      - reconciliation
+      - assistant
+
   prometheus:
     image: prom/prometheus:v2.55.1
     volumes:
