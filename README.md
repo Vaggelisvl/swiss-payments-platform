@@ -6,6 +6,14 @@ An event-driven payments backend in **Java 21 / Spring Boot 3**: payments are ac
 
 It is a portfolio project built to show how I design for **consistency, failure and operations**, not only for the happy path. It complements my [Swiss QR-bill service](https://github.com/Vaggelisvl/swiss-qr-bill-service).
 
+![Dashboard walkthrough](docs/img/dashboard-demo.gif)
+
+| Guided demo | Rejected payment explained by the assistant | Reconciliation review |
+|---|---|---|
+| ![Guided demo](docs/img/dashboard-demo.png) | ![Rejected payment](docs/img/dashboard-rejected-explain.png) | ![Review list](docs/img/dashboard-review-explain.png) |
+
+The dashboard runs locally with `docker compose` (see below). The AI exception assistant is also deployed on its own: **https://exception-assistant.onrender.com** (free plan: the first request after idle can take about a minute).
+
 ## Architecture
 
 ```mermaid
